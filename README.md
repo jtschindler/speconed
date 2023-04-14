@@ -1,4 +1,5 @@
 # SpecOneD
+##### (Version 1.0.0)
 
 [![Documentation Status](https://readthedocs.org/projects/speconed/badge/?version=latest)](https://speconed.readthedocs.io/en/latest/?badge=latest)
 
@@ -6,6 +7,6 @@ SpecOneD is a lightweight python package that introduces the SpecOneD class for 
 
 For installation instructions and documentation visit [SpecOneD's ReadTheDocs]
 
-##### (Version 0.1b0)
+
 
 [SpecOneD's ReadTheDocs]: https://speconed.readthedocs.io/en/latest/
