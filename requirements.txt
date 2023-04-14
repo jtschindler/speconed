@@ -1,0 +1,13 @@
+python~=3.9
+numpy
+scipy
+pandas
+h5py
+extinction
+spectres
+astropy
+matplotlib
+tables
+notebook
+nbsphinx
+nbsphinx-link
