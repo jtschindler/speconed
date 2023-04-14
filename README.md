@@ -1,5 +1,5 @@
 # SpecOneD
-##### (Version 1.0.0)
+##### (Version 1.0.1)
 
 [![Documentation Status](https://readthedocs.org/projects/speconed/badge/?version=latest)](https://speconed.readthedocs.io/en/latest/?badge=latest)
 

@@ -1,0 +1,3 @@
+
+include speconed/data/example_spectra/*
+include speconed/data/passbands/*
