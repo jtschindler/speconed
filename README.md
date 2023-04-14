@@ -6,4 +6,4 @@ For installation instructions and documentation visit [SpecOneD's ReadTheDocs]
 
 ##### (Version 0.1b0)
 
-[SpecOneD's ReadTheDocs]: https:/speconed.readthedocs.io/en/latest/
+[SpecOneD's ReadTheDocs]: https://speconed.readthedocs.io/en/latest/
