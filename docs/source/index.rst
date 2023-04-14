@@ -3,7 +3,9 @@ Welcome to SpecOneD's documentation!
 
 **Version:** |version|
 
-**SpecOneD** is a lightweight package to designed to manipulate and store 1D astronomical spectral data.
+**SpecOneD** is a lightweight package to designed to manipulate and store 1D astronomical spectral data. It introduces two
+python classes, the *SpecOneD* class and the *PassBand* class.
+
 If you are interested in being involved with this project, please contact Jan-Torge Schindler via `github <https://github.com/jtschindler/speconed>`_.
 
 

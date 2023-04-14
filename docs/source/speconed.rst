@@ -3,5 +3,5 @@ The SpecOneD Module
 ===================
 
 
-.. automodule:: sculptor.speconed
+.. automodule:: speconed.speconed
     :members:
