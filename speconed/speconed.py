@@ -1913,13 +1913,9 @@ class SpecOneD(object):
 
             return rspec
 
-    def calculate_passband_flux(self, passband,
-                                match_method='interpolate', force=False):
-        """Calculate the integrated flux in the specified passband.
-
-        Disclaimer: This function is written for passbands in quantum
-        efficiency. Therefore, the (h*nu)^-1 term is not included in the
-        integral.
+    def calculate_passband_flux_density(self, passband,
+                                        match_method='interpolate', force=False):
+        """Calculate the integrated flux density in the specified passband.
 
         :param passband: The astronomical passband with throughput in quantum \
         efficiencies.
@@ -1939,6 +1935,8 @@ class SpecOneD(object):
         # Copy spectrum
         spec = self.copy()
 
+        spec.to_fluxden_per_unit_frequency_cgs()
+
         # Convert passband to spectrum dispersion
         passband.convert_spectral_units(spec.dispersion_unit)
 
@@ -1954,7 +1952,8 @@ class SpecOneD(object):
 
         passband.match_dispersions(spec, force=force, method=match_method)
         spec.fluxden = passband.fluxden * spec.fluxden
-        total_flux = np.trapz(spec.fluxden * spec.fluxden_unit,
+        total_flux = np.trapz(spec.fluxden * spec.fluxden_unit /
+                              (spec.dispersion * spec.dispersion_unit),
                               spec.dispersion * spec.dispersion_unit)
 
         if total_flux <= 0.0:
@@ -1966,14 +1965,13 @@ class SpecOneD(object):
 
         return total_flux
 
+
     def calculate_passband_ab_magnitude(self, passband,
                                         match_method='interpolate',
                                         force=False):
         """Calculate the AB magnitude of the spectrum in the given passband.
 
-        Disclaimer: This function is written for passbands in quantum
-        efficiency. Therefore, the (h*nu)^-1 term is not included in the
-        integral.
+        AB magnitudes are calculated following equation 4 in https://arxiv.org/pdf/astro-ph/0210394.pdf
 
         :param passband: The astronomical passband with throughput in quantum \
         efficiencies.
@@ -1994,13 +1992,15 @@ class SpecOneD(object):
         spec = self.copy()
         spec.to_fluxden_per_unit_frequency_cgs()
 
-        spectrum_flux = spec.calculate_passband_flux(passband, force=force,
-                                                     match_method=match_method)
+        spectrum_flux = spec.calculate_passband_flux_density(passband, force=force,
+                                                             match_method=match_method)
+
 
         flat_flux = 3.631e-20 * np.ones_like(passband.dispersion) * \
                     u.erg/u.s/u.cm**2/u.Hz
 
-        passband_flux = np.trapz(flat_flux * passband.fluxden,
+        passband_flux = np.trapz(flat_flux * passband.fluxden /
+                                 (passband.dispersion * passband.dispersion_unit),
                                  passband.dispersion * passband.dispersion_unit)
 
         return -2.5 * np.log10(spectrum_flux / passband_flux)
@@ -2909,7 +2909,7 @@ class PassBand(SpecOneD):
     #     spec = self.copy()
     #     spec.to_fluxden_per_unit_wavelength_cgs()
     #
-    #     spectrum_flux = spec.calculate_passband_flux(passband, force=force,
+    #     spectrum_flux = spec.calculate_passband_flux_density(passband, force=force,
     #                                                  match_method=match_method)
     #
     #     flat_flux = 3.631e-9 * np.ones_like(passband.dispersion) *  \
