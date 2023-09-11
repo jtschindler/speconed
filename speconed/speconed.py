@@ -1973,6 +1973,10 @@ class SpecOneD(object):
 
         AB magnitudes are calculated following equation 4 in https://arxiv.org/pdf/astro-ph/0210394.pdf
 
+        Further references on how to calculate AB magnitudes are found in
+        https://arxiv.org/pdf/1407.6095.pdf Equation 5
+        https://arxiv.org/pdf/1112.2698.pdf Equation 2
+
         :param passband: The astronomical passband with throughput in quantum \
         efficiencies.
         :type passband: PassBand
