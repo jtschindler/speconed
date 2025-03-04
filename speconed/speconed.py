@@ -14,7 +14,7 @@ import scipy as sp
 import pandas as pd
 
 import h5py
-import extinction as ext
+import numba_extinction as ext
 import importlib.resources
 import spectres
 
@@ -23,7 +23,12 @@ from astropy import constants as const
 from astropy import units as u
 from astropy.convolution import convolve, Gaussian1DKernel, Box1DKernel
 
+import multiprocessing as mp
+from itertools import repeat
+
 import matplotlib.pyplot as plt
+
+from numba import jit, prange
 
 black = (0, 0, 0)
 orange = (230/255., 159/255., 0)
@@ -38,13 +43,34 @@ color_list = [vermillion, dblue, green, purple, yellow, orange, blue]
 
 ln_AA = u.def_unit('ln(Angstroem)')
 
-
+@jit
 def gaussian(x, amp, cen, sigma, shift):
     """ 1-D Gaussian function"""
     central = cen + shift
 
     return (amp / (np.sqrt(2*np.pi) * sigma)) * np.exp(-(x-central)**2 /
                                                        (2*sigma**2))
+
+@jit
+def _resolution_convolution(idx, dispersion, fluxden, resolution, fwhm_lim):
+
+    fwhm = dispersion[idx] / resolution  # fwhm in pixel units
+    sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))  # sigma in pixel units
+
+    # Mask wavelength range within 5 fwhm
+    index_mask = (dispersion > dispersion[idx] - fwhm_lim * fwhm) & \
+                 (dispersion < dispersion[idx] + fwhm_lim * fwhm)
+
+    flux_to_convolve = fluxden[index_mask]
+
+    profile = gaussian(dispersion[index_mask], 1.0,
+                       dispersion[idx], sigma, 0)
+
+    flux_sum = np.sum(profile * flux_to_convolve)
+
+    profile_sum = np.sum(profile)
+
+    return flux_sum / profile_sum
 
 
 class SpecOneD(object):
@@ -1079,7 +1105,7 @@ class SpecOneD(object):
                 secondary_max:
             return 'partial', spec_min, secondary_max
         else:
-            return 'none', np.NaN, np.NaN
+            return 'none', np.nan, np.nan
 
     def match_dispersions(self, secondary_spectrum, match_secondary=True,
                           force=False, method='interpolate',
@@ -1844,72 +1870,43 @@ class SpecOneD(object):
 
             return spec
 
-    def broaden_by_gaussian(self, fwhm, inplace=False):
-        """The spectrum is broadened by a Gaussian with the specified FWHM (
-        in km/s).
 
-        The convolution of the current spectrum and the Gaussian is performed
-        in logarithmic wavelength. Therefore, the spectrum is first converted to
-        flux per logarithmic wavelength, then convolved with the Gaussian
-        kernel and then converted back.
+    def broaden_by_resolution(self, resolution, inplace=False, fwhm_lim=5):
+        """ Broaden the spectrum by a given point-spread-function resolution.
 
-        The conversion functions will automatically take care of the unit
-        conversion and input spectra can be in flux density per unit
-        frequency or wavelength.
+        TODO: At present the implementation does not warn or restrict the output
+            wavelength ranges, which are affected by edge effects of the
+            convolution.
 
-        This function normalizes the output of the convolved spectrum in a
-        way that a Gaussian input signal of FWHM X broadened by a Gaussian
-        kernel of FWHM Y, results in a Gaussian output signal of FWHM sqrt(
-        X**2+Y**2) with the same amplitude as the input signal. Due to the
-        normalization factor of the Gaussian itself, this results in a lower
-        peak height.
-
-        The input spectrum and the Gaussian kernel are matched to the same
-        dispersion axis using the 'interpolate' function.
-
-        :param fwhm: FWHM of the Gaussian that the spectrum will be \
-        convolved with in km/s.
-        :type fwhm: float
-        :param inplace: Boolean to indicate whether the active SpecOneD \
-        object will be modified or a new SpecOneD object will be created and \
-        returned.
+        :param resolution: Resolution of the instrument
+        :type resolution: float
+        :param inplace: Boolean to indicate whether the active SpecOneD
+         object will be modified or a new SpecOneD object will be created and
+         returned.
         :type inplace: bool
-        :return: Returns the binned spectrum as a SpecOneD object if \
-        inplace==False.
+        :param fwhm_lim: Limit for the width of the Gaussian Kernel in
+         multiples of the FWHM.
+        :type fwhm_lim: float
+        :return: Returns the broadened spectrum as a SpecOneD object if
+            inplace==False.
         :rtype: SpecOneD
         """
 
-        spec = self.copy()
+        broadened_fluxden = np.zeros(len(self.dispersion))
 
-        stddev = fwhm / const.c.to('km/s').value / (2 * np.sqrt(2 * np.log(2)))
+        if isinstance(resolution, (int, float)):
+            resolution = np.ones(len(self.dispersion)) * resolution
 
-        # Convert spectrum to logarithmic wavelength (velocity space)
-        spec._to_log_wavelength()
-        # Interpolate to linear scale in logarithmic wavelength
-        new_disp = np.linspace(min(spec.dispersion), max(spec.dispersion),
-                               num=len(spec.dispersion))
-        spec.interpolate(new_disp, inplace=True)
+        for idx in prange(len(self.dispersion)):
 
-        # Setup the normalized Gaussian kernel
-        cen = (max(new_disp) - min(new_disp)) / 2. + min(new_disp)
-        kernel = gaussian(new_disp, 1.0, cen, stddev, 0)
-        conv = np.convolve(spec.fluxden, kernel, mode='same')
-
-        # Normalize convolved flux
-        conv = conv / len(kernel) / np.sqrt(8*np.log(2))**2
-
-        spec.fluxden = conv
-
-        # Convert back to linear wavelength units
-        spec._to_lin_wavelength()
-        spec.interpolate(self.dispersion, inplace=True)
+            broadened_fluxden[idx] = _resolution_convolution(
+                idx, self.dispersion, self.fluxden, resolution[idx], fwhm_lim)
 
         if inplace:
-            self.fluxden = spec.fluxden
+            self.fluxden = broadened_fluxden
         else:
             rspec = self.copy()
-            rspec.fluxden = spec.fluxden
-            rspec.fluxden_unit = spec.fluxden_unit
+            rspec.fluxden = broadened_fluxden
 
             return rspec
 
