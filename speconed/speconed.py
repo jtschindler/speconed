@@ -1574,6 +1574,7 @@ class SpecOneD(object):
 
         for idx in range(num_new_bins):
 
+
             _new_fluxden = 0
             _new_fluxden_err = 0
             _new_dbin = 0
@@ -1583,6 +1584,7 @@ class SpecOneD(object):
                 _new_dbin += dbins[idx * npix + jdx]
                 _new_fluxden_err += (flux_err[idx * npix + jdx] * dbins[
                     idx * npix + jdx]) ** 2
+
 
             rbin = rbins[npix * idx + npix - 1]
             lbin = lbins[npix * idx]
@@ -1615,6 +1617,7 @@ class SpecOneD(object):
             self.dispersion = new_disp
             self.fluxden = new_fluxden
             self.fluxden_err = new_fluxden_err
+            self.get_ivar_from_fluxden_error()
             self.reset_mask()
 
             for attr in ['obj_model', 'telluric']:
@@ -1625,12 +1628,16 @@ class SpecOneD(object):
             spec.dispersion = new_disp
             spec.fluxden = new_fluxden
             spec.fluxden_err = new_fluxden_err
+            spec.fluxden_ivar = 1.0 / new_fluxden_err ** 2
             spec.reset_mask()
 
             for attr in ['obj_model', 'telluric']:
                 spec.__dict__[attr] = attr_dict[attr]
 
             return spec
+
+
+
 
 # ------------------------------------------------------------------------------
 # PLOT FUNCTIONALITY
