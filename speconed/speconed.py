@@ -1688,11 +1688,11 @@ class SpecOneD(object):
                    label='Line of 0 flux density')
 
         if show_fluxden_err and self.fluxden_err is not None:
-            ax.plot(self.dispersion[mask], self.fluxden_err[mask], 'grey',
-                    lw=1, label='Flux density error')
+            ax.step(self.dispersion[mask], self.fluxden_err[mask], 'grey',
+                    lw=1, label='Flux density error', where='mid')
 
-        ax.plot(self.dispersion[mask], self.fluxden[mask], 'k',
-                linewidth=1, label='Flux density')
+        ax.step(self.dispersion[mask], self.fluxden[mask], 'k',
+                linewidth=1, label='Flux density', where='mid')
 
         # Additional plotting functionality for spectra with obj_models
         if self.obj_model is not None and show_obj_model:
@@ -1916,6 +1916,77 @@ class SpecOneD(object):
             rspec.fluxden = broadened_fluxden
 
             return rspec
+
+
+    def broaden_by_gaussian(self, fwhm, inplace=False):
+        """The spectrum is broadened by a Gaussian with the specified FWHM (
+        in km/s).
+
+        The convolution of the current spectrum and the Gaussian is performed
+        in logarithmic wavelength. Therefore, the spectrum is first converted to
+        flux per logarithmic wavelength, then convolved with the Gaussian
+        kernel and then converted back.
+
+        The conversion functions will automatically take care of the unit
+        conversion and input spectra can be in flux density per unit
+        frequency or wavelength.
+
+        This function normalizes the output of the convolved spectrum in a
+        way that a Gaussian input signal of FWHM X broadened by a Gaussian
+        kernel of FWHM Y, results in a Gaussian output signal of FWHM sqrt(
+        X**2+Y**2) with the same amplitude as the input signal. Due to the
+        normalization factor of the Gaussian itself, this results in a lower
+        peak height.
+
+        The input spectrum and the Gaussian kernel are matched to the same
+        dispersion axis using the 'interpolate' function.
+
+        :param fwhm: FWHM of the Gaussian that the spectrum will be \
+        convolved with in km/s.
+        :type fwhm: float
+        :param inplace: Boolean to indicate whether the active SpecOneD \
+        object will be modified or a new SpecOneD object will be created and \
+        returned.
+        :type inplace: bool
+        :return: Returns the binned spectrum as a SpecOneD object if \
+        inplace==False.
+        :rtype: SpecOneD
+        """
+
+        spec = self.copy()
+
+        stddev = fwhm / const.c.to('km/s').value / (2 * np.sqrt(2 * np.log(2)))
+
+        # Convert spectrum to logarithmic wavelength (velocity space)
+        spec._to_log_wavelength()
+        # Interpolate to linear scale in logarithmic wavelength
+        new_disp = np.linspace(min(spec.dispersion), max(spec.dispersion),
+                               num=len(spec.dispersion))
+        spec.interpolate(new_disp, inplace=True)
+
+        # Setup the normalized Gaussian kernel
+        cen = (max(new_disp) - min(new_disp)) / 2. + min(new_disp)
+        kernel = gaussian(new_disp, 1.0, cen, stddev, 0)
+        conv = np.convolve(spec.fluxden, kernel, mode='same')
+
+        # Normalize convolved flux
+        conv = conv / len(kernel) / np.sqrt(8*np.log(2))**2
+
+        spec.fluxden = conv
+
+        # Convert back to linear wavelength units
+        spec._to_lin_wavelength()
+        spec.interpolate(self.dispersion, inplace=True)
+
+        if inplace:
+            self.fluxden = spec.fluxden
+        else:
+            rspec = self.copy()
+            rspec.fluxden = spec.fluxden
+            rspec.fluxden_unit = spec.fluxden_unit
+
+            return rspec
+
 
     def calculate_passband_flux_density(self, passband,
                                         match_method='interpolate', force=False):
