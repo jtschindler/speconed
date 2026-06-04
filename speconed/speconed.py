@@ -2027,7 +2027,7 @@ class SpecOneD(object):
 
         passband.match_dispersions(spec, force=force, method=match_method)
         spec.fluxden = passband.fluxden * spec.fluxden
-        total_flux = np.trapz(spec.fluxden * spec.fluxden_unit /
+        total_flux = np.trapezoid(spec.fluxden * spec.fluxden_unit /
                               (spec.dispersion * spec.dispersion_unit),
                               spec.dispersion * spec.dispersion_unit)
 
@@ -2078,7 +2078,7 @@ class SpecOneD(object):
         flat_flux = 3.631e-20 * np.ones_like(passband.dispersion) * \
                     u.erg/u.s/u.cm**2/u.Hz
 
-        passband_flux = np.trapz(flat_flux * passband.fluxden /
+        passband_flux = np.trapezoid(flat_flux * passband.fluxden /
                                  (passband.dispersion * passband.dispersion_unit),
                                  passband.dispersion * passband.dispersion_unit)
 
@@ -2198,8 +2198,8 @@ class SpecOneD(object):
                              'understood. The function can take None or a '
                              'list of two floats.')
 
-        average_self_flux = np.trapz(spec.fluxden, spec.dispersion)
-        average_spec_flux = np.trapz(spec2.fluxden, spec2.dispersion)
+        average_self_flux = np.trapezoid(spec.fluxden, spec.dispersion)
+        average_spec_flux = np.trapezoid(spec2.fluxden, spec2.dispersion)
 
         scale_factor = (average_spec_flux/average_self_flux)
 
@@ -2996,7 +2996,7 @@ class PassBand(SpecOneD):
     #     # flat_flux = 1.4454397707459234e-9 * np.ones_like(passband.dispersion) * \
     #     #             u.erg / u.s / u.cm ** 2 / u.AA
     #
-    #     passband_flux = np.trapz(flat_flux * passband.fluxden,
+    #     passband_flux = np.trapezoid(flat_flux * passband.fluxden,
     #                              passband.dispersion * passband.dispersion_unit)
     #
     #     print(spectrum_flux , passband_flux)
