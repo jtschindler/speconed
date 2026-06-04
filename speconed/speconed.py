@@ -1357,6 +1357,67 @@ class SpecOneD(object):
             spec.reset_mask()
             return spec
 
+
+    def ivar_smooth(spec, window, inplace=False):
+
+        """Smooth the flux density of the spectrum using a boxcar kernel and the inverse variance as weights.
+        
+        :param spec: SpecOneD spectrum to be smoothed
+        :type spec: SpecOneD
+        :param window: Width (in pixels) of the boxcar kernel
+        :type window: int
+        :param inplace: Boolean to indicate whether the active SpecOneD \
+        object will be modified or a new SpecOneD object will be created and \
+        returned.
+        :type inplace: bool
+        :return: SpecOneD spectrum with smoothed flux density
+        :rtype: SpecOneD
+        """
+
+
+        len_flux = len(spec.fluxden)
+
+        half_window = int(np.floor((np.round(window) - 1) / 2))
+
+        shift_arr = np.zeros((len_flux, 2 * half_window + 1))
+        shift_ivar = np.zeros((len_flux, 2 * half_window + 1))
+        shift_index = np.zeros((len_flux, 2 * half_window + 1))
+
+        index_arr = np.arange(len_flux)
+        index_norm = np.outer(index_arr, (np.zeros(2 * half_window + 1) + 1))
+
+        for idx in np.arange(-half_window, half_window + 1, dtype=int):
+            shift_arr[:, idx + half_window] = np.roll(spec.fluxden, idx)
+            shift_ivar[:, idx + half_window] = np.roll(spec.fluxden_ivar, idx)
+            shift_index[:, idx + half_window] = np.roll(index_arr, idx)
+
+        wh = (np.abs(shift_index - index_norm) > (half_window + 1))
+        shift_ivar[wh] = 0.0
+        outivar = np.sum(shift_ivar, axis=1)
+        nzero, = np.where(outivar > 0.0)
+        zeroct = len(nzero)
+
+        # Calculate the smoothed flux
+        fluxden_smoothed = np.sum(shift_arr * shift_ivar, axis=1)
+        if (zeroct > 0):
+            fluxden_smoothed[nzero] = fluxden_smoothed[nzero] / outivar[nzero]
+        else:
+            fluxden_smoothed = np.roll(spec.fluxden, 2 * half_window + 1)
+
+        # Return the smoothed flux
+        if inplace:
+            spec.fluxden = fluxden_smoothed
+            spec.fluxden_ivar = outivar
+            spec.get_fluxden_error_from_ivar()
+            return
+        else:
+            outspec = spec.copy()
+            outspec.fluxden = fluxden_smoothed
+            outspec.fluxden_ivar = outivar
+            outspec.get_fluxden_error_from_ivar()
+            return outspec
+
+
     def smooth(self, width, kernel="boxcar", scale_sigma=True, inplace=False):
         """Smoothing the flux density of the spectrum using a boxcar oder
         gaussian kernel.
