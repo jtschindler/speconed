@@ -1358,7 +1358,7 @@ class SpecOneD(object):
             return spec
 
 
-    def ivar_smooth(spec, window, inplace=False):
+    def ivar_smooth(self, window, inplace=False):
 
         """Smooth the flux density of the spectrum using a boxcar kernel and the inverse variance as weights.
         
@@ -1375,7 +1375,7 @@ class SpecOneD(object):
         """
 
 
-        len_flux = len(spec.fluxden)
+        len_flux = len(self.fluxden)
 
         half_window = int(np.floor((np.round(window) - 1) / 2))
 
@@ -1387,8 +1387,8 @@ class SpecOneD(object):
         index_norm = np.outer(index_arr, (np.zeros(2 * half_window + 1) + 1))
 
         for idx in np.arange(-half_window, half_window + 1, dtype=int):
-            shift_arr[:, idx + half_window] = np.roll(spec.fluxden, idx)
-            shift_ivar[:, idx + half_window] = np.roll(spec.fluxden_ivar, idx)
+            shift_arr[:, idx + half_window] = np.roll(self.fluxden, idx)
+            shift_ivar[:, idx + half_window] = np.roll(self.fluxden_ivar, idx)
             shift_index[:, idx + half_window] = np.roll(index_arr, idx)
 
         wh = (np.abs(shift_index - index_norm) > (half_window + 1))
@@ -1402,16 +1402,16 @@ class SpecOneD(object):
         if (zeroct > 0):
             fluxden_smoothed[nzero] = fluxden_smoothed[nzero] / outivar[nzero]
         else:
-            fluxden_smoothed = np.roll(spec.fluxden, 2 * half_window + 1)
+            fluxden_smoothed = np.roll(self.fluxden, 2 * half_window + 1)
 
         # Return the smoothed flux
         if inplace:
-            spec.fluxden = fluxden_smoothed
-            spec.fluxden_ivar = outivar
-            spec.get_fluxden_error_from_ivar()
+            self.fluxden = fluxden_smoothed
+            self.fluxden_ivar = outivar
+            self.get_fluxden_error_from_ivar()
             return
         else:
-            outspec = spec.copy()
+            outspec = self.copy()
             outspec.fluxden = fluxden_smoothed
             outspec.fluxden_ivar = outivar
             outspec.get_fluxden_error_from_ivar()
@@ -1803,8 +1803,8 @@ class SpecOneD(object):
 
         spec = self.copy()
 
-        percentiles = np.percentile(spec.fluxden[spec.mask], [16, 84])
-        median = np.median(spec.fluxden[spec.mask])
+        percentiles = np.nanpercentile(spec.fluxden[spec.mask], [16, 84])
+        median = np.nanmedian(spec.fluxden[spec.mask])
 
         ylim_min = -0.5*median
         ylim_max = 4*percentiles[1]
@@ -1961,6 +1961,7 @@ class SpecOneD(object):
         """
 
         broadened_fluxden = np.zeros(len(self.dispersion))
+        broadened_fluxden_err = np.zeros(len(self.dispersion))
 
         if isinstance(resolution, (int, float)):
             resolution = np.ones(len(self.dispersion)) * resolution
@@ -1969,12 +1970,16 @@ class SpecOneD(object):
 
             broadened_fluxden[idx] = _resolution_convolution(
                 idx, self.dispersion, self.fluxden, resolution[idx], fwhm_lim)
+            broadened_fluxden_err[idx] = _resolution_convolution(
+                idx, self.dispersion, self.fluxden_err, resolution[idx], fwhm_lim)
 
         if inplace:
             self.fluxden = broadened_fluxden
+            self.fluxden_err = broadened_fluxden_err
         else:
             rspec = self.copy()
             rspec.fluxden = broadened_fluxden
+            rspec.fluxden_err = broadened_fluxden_err
 
             return rspec
 
